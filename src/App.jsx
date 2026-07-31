@@ -1,44 +1,54 @@
 import React, { useState } from 'react';
-import { RegistroUsuario } from './components/RegistroUsuario';
-import { AgendarCita } from './components/AgendarCita';
-import { ListaCitas } from './components/ListaCitas';
+import RegistroUsuario from './components/RegistroUsuario';
+import GestionMedicos from './components/GestionMedicos';
+import { AgendarCita } from './components/AgendarCita'; // <--- Importamos tu componente exacto
+import ListaCitas from './components/ListaCitas';
 
 function App() {
-  const [usuarioActual, setUsuarioActual] = useState(null);
-  const [recargarCitas, setRecargarCitas] = useState(false);
-
-  // Función para refrescar el historial cuando se crea una cita
-  const handleCitaCreada = () => {
-    setRecargarCitas((prev) => !prev);
-  };
+  const [usuarioActivo, setUsuarioActivo] = useState(null);
+  const [recargar, setRecargar] = useState(false);
 
   return (
-    <div style={{ fontFamily: 'Arial, sans-serif', textAlign: 'center', padding: '20px' }}>
-      <h1>🏥 Sistema de Gestión de Citas - Saludría</h1>
+    <div style={{ padding: '20px', fontFamily: 'Arial', maxWidth: '800px', margin: '0 auto' }}>
+      <h1>Sistema de Gestión de Citas - Saludría</h1>
+      
+      {/* 1. Registro o Identificación del Paciente */}
+      <RegistroUsuario onUsuarioSeleccionado={(usu) => {
+        setUsuarioActivo(usu);
+        setRecargar(!recargar);
+      }} />
 
-      {!usuarioActual ? (
-        <RegistroUsuario onUsuarioSeleccionado={(usuario) => setUsuarioActual(usuario)} />
-      ) : (
-        <div>
-          <div style={{ backgroundColor: '#e9ecef', padding: '10px 20px', borderRadius: '5px', display: 'inline-block', marginBottom: '20px' }}>
-            <span>Paciente Activo: <strong>{usuarioActual.nombre}</strong> (ID: {usuarioActual.id}) </span>
-            <button 
-              onClick={() => setUsuarioActual(null)} 
-              style={{ marginLeft: '10px', padding: '5px 10px', cursor: 'pointer', borderRadius: '4px', border: '1px solid #999' }}
-            >
-              Cambiar Paciente
-            </button>
-          </div>
-
-          <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '20px' }}>
-            {/* Formulario a la izquierda */}
-            <AgendarCita usuario={usuarioActual} onCitaCreada={handleCitaCreada} />
-            
-            {/* Tabla del historial a la derecha */}
-            <ListaCitas usuario={usuarioActual} recargar={recargarCitas} />
-          </div>
+      {usuarioActivo && (
+        <div style={{ backgroundColor: '#eef9ff', padding: '10px', borderRadius: '5px', textAlign: 'center', margin: '15px 0' }}>
+          <p style={{ color: '#0056b3', margin: 0, fontWeight: 'bold' }}>
+            Paciente activo: {usuarioActivo.nombre} (ID: {usuarioActivo.id})
+          </p>
         </div>
       )}
+
+      <hr style={{ margin: '30px 0' }} />
+      
+      {/* 2. Módulo de Gestión de Médicos */}
+      <GestionMedicos />
+
+      <hr style={{ margin: '30px 0' }} />
+      
+      {/* 3. Tu componente AgendarCita (Se muestra solo si hay un paciente activo) */}
+      {usuarioActivo ? (
+        <AgendarCita 
+          usuario={usuarioActivo} 
+          onCitaCreada={() => setRecargar(!recargar)} 
+        />
+      ) : (
+        <p style={{ textAlign: 'center', color: '#d9534f', fontWeight: 'bold' }}>
+          ⚠️ Registra o selecciona un paciente arriba para poder agendar una cita.
+        </p>
+      )}
+
+      <hr style={{ margin: '30px 0' }} />
+      
+      {/* 4. Listado de Citas */}
+      <ListaCitas usuario={usuarioActivo} recargar={recargar} />
     </div>
   );
 }

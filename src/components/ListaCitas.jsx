@@ -15,6 +15,12 @@ export function ListaCitas({ usuario, recargar }) {
   }, [usuario, recargar]);
 
   const cargarCitas = async () => {
+    // Si no hay usuario seleccionado, no hacemos la petición para evitar el error
+    if (!usuario || !usuario.id) {
+      setCargando(false);
+      return;
+    }
+
     try {
       setCargando(true);
       const data = await obtenerCitasPorPaciente(usuario.id);
@@ -160,3 +166,5 @@ export function ListaCitas({ usuario, recargar }) {
     </div>
   );
 }
+
+export default ListaCitas;

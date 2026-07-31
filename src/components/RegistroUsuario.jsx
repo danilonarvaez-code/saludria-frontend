@@ -1,14 +1,13 @@
 import React, { useState } from 'react';
 import { crearUsuario } from '../services/usuarioService';
 
-export function RegistroUsuario({ onUsuarioSeleccionado }) {
+export default function RegistroUsuario({ onUsuarioSeleccionado }) {
   const [formData, setFormData] = useState({
     nombre: '',
     correo: '',
-    password: '123',
+    password: '',
     rol: 'PACIENTE'
   });
-
   const [mensaje, setMensaje] = useState('');
 
   const handleChange = (e) => {
@@ -58,6 +57,18 @@ export function RegistroUsuario({ onUsuarioSeleccionado }) {
             type="email"
             name="correo"
             value={formData.correo}
+            onChange={handleChange}
+            required
+            style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }}
+          />
+        </div>
+
+        <div style={{ marginBottom: '10px' }}>
+          <label style={{ display: 'block' }}>Contraseña:</label>
+          <input
+            type="password"
+            name="password"
+            value={formData.password}
             onChange={handleChange}
             required
             style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }}
