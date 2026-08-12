@@ -1,167 +1,482 @@
-import React, { useEffect, useState } from 'react';
-import { obtenerCitasPorPaciente, eliminarCita, actualizarCita } from '../services/citaService';
+import React, {
+  useEffect,
+  useState
+} from 'react';
 
-export function ListaCitas({ usuario, recargar }) {
+import {
+  obtenerCitasPorPaciente,
+  eliminarCita,
+  actualizarCita
+} from '../services/citaService';
+
+import {
+  obtenerMedicos
+} from '../services/medicoService';
+
+export function ListaCitas({
+  usuario,
+  recargar
+}) {
   const [citas, setCitas] = useState([]);
+  const [medicos, setMedicos] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [mensaje, setMensaje] = useState('');
+  const [error, setError] = useState('');
+  const [citaEditando, setCitaEditando] =
+    useState(null);
 
-  // Estado para controlar qué cita se está editando
-  const [citaEditando, setCitaEditando] = useState(null);
-  const [formEdit, setFormEdit] = useState({ especialidad: '', fechaHora: '' });
+  const [formEdit, setFormEdit] = useState({
+    especialidad: '',
+    fechaHora: '',
+    medicoId: ''
+  });
 
   useEffect(() => {
-    cargarCitas();
+    cargarDatos();
   }, [usuario, recargar]);
 
-  const cargarCitas = async () => {
-    // Si no hay usuario seleccionado, no hacemos la petición para evitar el error
-    if (!usuario || !usuario.id) {
+  const cargarDatos = async () => {
+    if (!usuario?.id) {
       setCargando(false);
+      setCitas([]);
       return;
     }
 
     try {
       setCargando(true);
-      const data = await obtenerCitasPorPaciente(usuario.id);
-      setCitas(data);
-    } catch (error) {
-      console.error('Error al cargar citas:', error);
+      setError('');
+
+      const [
+        citasData,
+        medicosData
+      ] = await Promise.all([
+        obtenerCitasPorPaciente(usuario.id),
+        obtenerMedicos()
+      ]);
+
+      setCitas(
+        Array.isArray(citasData)
+          ? citasData
+          : []
+      );
+
+      setMedicos(
+        Array.isArray(medicosData)
+          ? medicosData
+          : []
+      );
+
+    } catch (err) {
+      console.error(
+        'Error al cargar datos:',
+        err
+      );
+
+      setError(
+        'No fue posible cargar las citas.'
+      );
+
     } finally {
       setCargando(false);
     }
   };
 
   const handleCancelar = async (citaId) => {
-    if (window.confirm('¿Estás seguro de que deseas cancelar esta cita?')) {
-      try {
-        await eliminarCita(citaId);
-        setMensaje('Cita cancelada con éxito.');
-        setCitas(citas.filter((c) => c.id !== citaId));
-      } catch (error) {
-        console.error('Error al eliminar cita:', error);
-        alert('No se pudo cancelar la cita.');
+    if (
+      !window.confirm(
+        '¿Estás seguro de que deseas cancelar esta cita?'
+      )
+    ) {
+      return;
+    }
+
+    try {
+      await eliminarCita(citaId);
+
+      setMensaje(
+        'Cita cancelada correctamente.'
+      );
+
+      await cargarDatos();
+
+    } catch (error) {
+      console.error(error);
+
+      alert(
+        error.response?.data?.error ||
+        error.response?.data?.mensaje ||
+        'No se pudo cancelar la cita.'
+      );
+    }
+  };
+
+  const handleIniciarEdicion = (cita) => {
+    setCitaEditando(cita.id);
+
+    setFormEdit({
+      especialidad:
+        cita.especialidad || '',
+
+      fechaHora:
+        cita.fechaHora
+          ? cita.fechaHora.slice(0, 16)
+          : '',
+
+      medicoId:
+        cita.medico?.id
+          ? String(cita.medico.id)
+          : ''
+    });
+  };
+
+  const handleGuardarEdicion = async (
+    citaId
+  ) => {
+    if (!formEdit.fechaHora) {
+      alert(
+        'La fecha y hora son obligatorias.'
+      );
+      return;
+    }
+
+    if (!formEdit.medicoId) {
+      alert(
+        'Selecciona un médico.'
+      );
+      return;
+    }
+
+    try {
+      await actualizarCita(
+        citaId,
+        {
+          fechaHora:
+            formEdit.fechaHora.length === 16
+              ? `${formEdit.fechaHora}:00`
+              : formEdit.fechaHora,
+
+          especialidad:
+            formEdit.especialidad,
+
+          estado: 'CONFIRMADA',
+
+          usuario: {
+            id: Number(usuario.id)
+          },
+
+          medico: {
+            id: Number(formEdit.medicoId)
+          }
+        }
+      );
+
+      setMensaje(
+        'Cita actualizada correctamente.'
+      );
+
+      setCitaEditando(null);
+
+      await cargarDatos();
+
+    } catch (error) {
+      console.error(error);
+
+      const data = error.response?.data;
+
+      if (data?.errores) {
+        alert(
+          Object.values(data.errores).join(' | ')
+        );
+      } else {
+        alert(
+          data?.error ||
+          data?.mensaje ||
+          'Error al actualizar la cita.'
+        );
       }
     }
   };
 
-  // Iniciar el modo de edición para una cita
-  const handleIniciarEdicion = (cita) => {
-    setCitaEditando(cita.id);
-    setFormEdit({
-      especialidad: cita.especialidad,
-      fechaHora: cita.fechaHora ? cita.fechaHora.slice(0, 16) : '' // Formato YYYY-MM-THH:mm
-    });
-  };
+  if (!usuario) {
+    return (
+      <div
+        style={{
+          maxWidth: '850px',
+          margin: '20px auto',
+          padding: '20px',
+          border: '1px solid #ccc',
+          borderRadius: '8px'
+        }}
+      >
+        <h3>Mis Citas Programadas</h3>
 
-  // Guardar los cambios editados
-  const handleGuardarEdicion = async (citaId) => {
-    try {
-      const citaActualizada = {
-        especialidad: formEdit.especialidad,
-        fechaHora: formEdit.fechaHora,
-        usuario: { id: usuario.id }
-      };
+        <p
+          style={{
+            color: '#777'
+          }}
+        >
+          Selecciona un paciente para consultar
+          sus citas.
+        </p>
+      </div>
+    );
+  }
 
-      await actualizarCita(citaId, citaActualizada);
-      setMensaje('Cita actualizada correctamente.');
-      setCitaEditando(null);
-      cargarCitas(); // Recargar lista
-    } catch (error) {
-      console.error('Error al actualizar cita:', error);
-      alert('Error al intentar actualizar la cita.');
-    }
-  };
-
-  if (cargando) return <p>Cargando tus citas...</p>;
+  if (cargando) {
+    return (
+      <p>
+        Cargando citas de {usuario.nombre}...
+      </p>
+    );
+  }
 
   return (
-    <div style={{ maxWidth: '650px', margin: '20px auto', padding: '20px', border: '1px solid #ccc', borderRadius: '8px', backgroundColor: '#fff' }}>
-      <h3>Mis Citas Programadas</h3>
+    <div
+      style={{
+        maxWidth: '850px',
+        margin: '20px auto',
+        padding: '20px',
+        border: '1px solid #ccc',
+        borderRadius: '8px',
+        backgroundColor: '#fff'
+      }}
+    >
+      <h3>
+        Mis Citas Programadas
+      </h3>
 
-      {mensaje && <p style={{ color: 'green', fontWeight: 'bold' }}>{mensaje}</p>}
+      <p>
+        Paciente:
+        <strong>
+          {' '}
+          {usuario.nombre}
+        </strong>
+      </p>
+
+      {mensaje && (
+        <p
+          style={{
+            color: 'green',
+            fontWeight: 'bold'
+          }}
+        >
+          {mensaje}
+        </p>
+      )}
+
+      {error && (
+        <p
+          style={{
+            color: 'red',
+            fontWeight: 'bold'
+          }}
+        >
+          {error}
+        </p>
+      )}
 
       {citas.length === 0 ? (
-        <p style={{ color: '#777' }}>No tienes citas agendadas por el momento.</p>
+        <p
+          style={{
+            color: '#777'
+          }}
+        >
+          No tienes citas agendadas por el momento.
+        </p>
       ) : (
-        <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px' }}>
-          <thead>
-            <tr style={{ backgroundColor: '#f2f2f2', borderBottom: '2px solid #ddd' }}>
-              <th style={{ padding: '10px', textAlign: 'left' }}>ID</th>
-              <th style={{ padding: '10px', textAlign: 'left' }}>Especialidad</th>
-              <th style={{ padding: '10px', textAlign: 'left' }}>Fecha / Hora</th>
-              <th style={{ padding: '10px', textAlign: 'center' }}>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {citas.map((cita) => (
-              <tr key={cita.id} style={{ borderBottom: '1px solid #eee' }}>
-                <td style={{ padding: '10px' }}>{cita.id}</td>
+        <div
+          style={{
+            overflowX: 'auto'
+          }}
+        >
+          <table
+            style={{
+              width: '100%',
+              borderCollapse: 'collapse',
+              marginTop: '10px'
+            }}
+          >
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Especialidad</th>
+                <th>Médico</th>
+                <th>Fecha / Hora</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
 
-                {citaEditando === cita.id ? (
-                  // MODO EDICIÓN
-                  <>
-                    <td style={{ padding: '5px' }}>
+            <tbody>
+              {citas.map((cita) => (
+                <tr key={cita.id}>
+                  <td>{cita.id}</td>
+
+                  <td>
+                    {citaEditando === cita.id ? (
                       <select
-                        value={formEdit.especialidad}
-                        onChange={(e) => setFormEdit({ ...formEdit, especialidad: e.target.value })}
-                        style={{ padding: '5px' }}
+                        value={
+                          formEdit.especialidad
+                        }
+                        onChange={(e) =>
+                          setFormEdit({
+                            ...formEdit,
+                            especialidad:
+                              e.target.value
+                          })
+                        }
                       >
-                        <option value="Medicina General">Medicina General</option>
-                        <option value="Odontología">Odontología</option>
-                        <option value="Pediatría">Pediatría</option>
-                        <option value="Optometría">Optometría</option>
-                        <option value="Cardiología">Cardiología</option>
+                        <option>
+                          Medicina General
+                        </option>
+
+                        <option>
+                          Odontología
+                        </option>
+
+                        <option>
+                          Pediatría
+                        </option>
+
+                        <option>
+                          Optometría
+                        </option>
+
+                        <option>
+                          Cardiología
+                        </option>
                       </select>
-                    </td>
-                    <td style={{ padding: '5px' }}>
+                    ) : (
+                      cita.especialidad
+                    )}
+                  </td>
+
+                  <td>
+                    {citaEditando === cita.id ? (
+                      <select
+                        value={
+                          formEdit.medicoId
+                        }
+                        onChange={(e) =>
+                          setFormEdit({
+                            ...formEdit,
+                            medicoId:
+                              e.target.value
+                          })
+                        }
+                      >
+                        <option value="">
+                          -- Médico --
+                        </option>
+
+                        {medicos.map(
+                          (medico) => (
+                            <option
+                              key={medico.id}
+                              value={medico.id}
+                            >
+                              {medico.nombre}
+                            </option>
+                          )
+                        )}
+                      </select>
+                    ) : (
+                      cita.medico
+                        ? `${cita.medico.nombre} - ${cita.medico.especialidad}`
+                        : 'Sin médico'
+                    )}
+                  </td>
+
+                  <td>
+                    {citaEditando === cita.id ? (
                       <input
                         type="datetime-local"
-                        value={formEdit.fechaHora}
-                        onChange={(e) => setFormEdit({ ...formEdit, fechaHora: e.target.value })}
-                        style={{ padding: '5px' }}
+                        value={
+                          formEdit.fechaHora
+                        }
+                        onChange={(e) =>
+                          setFormEdit({
+                            ...formEdit,
+                            fechaHora:
+                              e.target.value
+                          })
+                        }
                       />
-                    </td>
-                    <td style={{ padding: '5px', textAlign: 'center' }}>
-                      <button
-                        onClick={() => handleGuardarEdicion(cita.id)}
-                        style={{ backgroundColor: '#28a745', color: '#fff', border: 'none', padding: '5px 8px', marginRight: '5px', borderRadius: '4px', cursor: 'pointer' }}
-                      >
-                        Guardar
-                      </button>
-                      <button
-                        onClick={() => setCitaEditando(null)}
-                        style={{ backgroundColor: '#6c757d', color: '#fff', border: 'none', padding: '5px 8px', borderRadius: '4px', cursor: 'pointer' }}
-                      >
-                        X
-                      </button>
-                    </td>
-                  </>
-                ) : (
-                  // MODO LECTURA NORMAL
-                  <>
-                    <td style={{ padding: '10px' }}>{cita.especialidad}</td>
-                    <td style={{ padding: '10px' }}>{new Date(cita.fechaHora).toLocaleString()}</td>
-                    <td style={{ padding: '10px', textAlign: 'center' }}>
-                      <button
-                        onClick={() => handleIniciarEdicion(cita)}
-                        style={{ backgroundColor: '#ffc107', color: '#000', border: 'none', padding: '5px 8px', marginRight: '5px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
-                      >
-                        Editar
-                      </button>
-                      <button
-                        onClick={() => handleCancelar(cita.id)}
-                        style={{ backgroundColor: '#dc3545', color: '#fff', border: 'none', padding: '5px 8px', borderRadius: '4px', cursor: 'pointer' }}
-                      >
-                        Cancelar
-                      </button>
-                    </td>
-                  </>
-                )}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                    ) : (
+                      cita.fechaHora
+                        ? new Date(
+                            cita.fechaHora
+                          ).toLocaleString(
+                            'es-CO'
+                          )
+                        : 'Sin fecha'
+                    )}
+                  </td>
+
+                  <td>
+                    {cita.estado ||
+                      'ASIGNADA'}
+                  </td>
+
+                  <td>
+                    {citaEditando === cita.id ? (
+                      <>
+                        <button
+                          onClick={() =>
+                            handleGuardarEdicion(
+                              cita.id
+                            )
+                          }
+                        >
+                          Guardar
+                        </button>
+
+                        {' '}
+
+                        <button
+                          onClick={() =>
+                            setCitaEditando(
+                              null
+                            )
+                          }
+                        >
+                          Cancelar
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() =>
+                            handleIniciarEdicion(
+                              cita
+                            )
+                          }
+                        >
+                          Editar
+                        </button>
+
+                        {' '}
+
+                        <button
+                          onClick={() =>
+                            handleCancelar(
+                              cita.id
+                            )
+                          }
+                          style={{
+                            color: 'red'
+                          }}
+                        >
+                          Eliminar
+                        </button>
+                      </>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

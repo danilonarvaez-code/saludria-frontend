@@ -1,14 +1,53 @@
-import React, { useState } from 'react';
-import { agendarCita } from '../services/citaService';
+import React, {
+  useEffect,
+  useState
+} from 'react';
 
-export function AgendarCita({ usuario, onCitaCreada }) {
+import {
+  agendarCita
+} from '../services/citaService';
+
+import {
+  obtenerMedicos
+} from '../services/medicoService';
+
+export function AgendarCita({
+  usuario,
+  onCitaCreada
+}) {
+  const [medicos, setMedicos] = useState([]);
+
   const [formData, setFormData] = useState({
     especialidad: 'Medicina General',
-    fechaHora: ''
+    fechaHora: '',
+    medicoId: ''
   });
 
   const [mensaje, setMensaje] = useState('');
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    cargarMedicos();
+  }, []);
+
+  const cargarMedicos = async () => {
+    try {
+      const data = await obtenerMedicos();
+
+      setMedicos(
+        Array.isArray(data) ? data : []
+      );
+    } catch (err) {
+      console.error(
+        'Error al cargar médicos:',
+        err
+      );
+
+      setError(
+        'No fue posible cargar los médicos.'
+      );
+    }
+  };
 
   const handleChange = (e) => {
     setFormData({
@@ -19,74 +58,246 @@ export function AgendarCita({ usuario, onCitaCreada }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     setMensaje('');
     setError('');
 
-    // Estructura JSON requerida por Spring Boot
+    if (!usuario?.id) {
+      setError(
+        'Primero debes seleccionar un paciente.'
+      );
+      return;
+    }
+
+    if (!formData.medicoId) {
+      setError(
+        'Selecciona un médico antes de agendar la cita.'
+      );
+      return;
+    }
+
+    if (!formData.fechaHora) {
+      setError(
+        'Selecciona la fecha y hora de la cita.'
+      );
+      return;
+    }
+
     const nuevaCita = {
-      especialidad: formData.especialidad,
-      fechaHora: formData.fechaHora,
+      fechaHora:
+        formData.fechaHora.length === 16
+          ? `${formData.fechaHora}:00`
+          : formData.fechaHora,
+
+      especialidad:
+        formData.especialidad,
+
+      estado: 'ASIGNADA',
+
       usuario: {
-        id: usuario.id
+        id: Number(usuario.id)
+      },
+
+      medico: {
+        id: Number(formData.medicoId)
       }
     };
 
     try {
-      const respuesta = await agendarCita(nuevaCita);
-      setMensaje(`¡Cita agendada con éxito para ${respuesta.especialidad}!`);
-      
-      // Limpiamos el campo de fecha y hora
-      setFormData({ ...formData, fechaHora: '' });
+      const respuesta =
+        await agendarCita(nuevaCita);
+
+      setMensaje(
+        `Cita agendada correctamente con ${
+          respuesta.medico?.nombre || 'el médico seleccionado'
+        }.`
+      );
+
+      setFormData({
+        especialidad: 'Medicina General',
+        fechaHora: '',
+        medicoId: ''
+      });
 
       if (onCitaCreada) {
         onCitaCreada(respuesta);
       }
+
     } catch (err) {
       console.error(err);
-      setError('Error al agendar la cita. Revisa la consola o el servidor.');
+
+      const data = err.response?.data;
+
+      if (data?.errores) {
+        const mensajes = Object.values(
+          data.errores
+        ).join(' | ');
+
+        setError(
+          mensajes || 'Los datos de la cita no son válidos.'
+        );
+      } else {
+        setError(
+          data?.error ||
+          data?.mensaje ||
+          'Error al agendar la cita.'
+        );
+      }
     }
   };
 
   return (
-    <div style={{ maxWidth: '400px', margin: '20px auto', padding: '20px', border: '1px solid #ccc', borderRadius: '8px', backgroundColor: '#fdfdfd' }}>
+    <div
+      style={{
+        maxWidth: '450px',
+        margin: '20px auto',
+        padding: '20px',
+        border: '1px solid #ccc',
+        borderRadius: '8px',
+        backgroundColor: '#fdfdfd'
+      }}
+    >
       <h2>Agendar Cita Médica</h2>
-      <p style={{ color: '#555' }}>Paciente: <strong>{usuario.nombre}</strong></p>
 
-      {mensaje && <p style={{ color: 'green', fontWeight: 'bold' }}>{mensaje}</p>}
-      {error && <p style={{ color: 'red', fontWeight: 'bold' }}>{error}</p>}
+      <p>
+        Paciente:
+        <strong>
+          {' '}
+          {usuario?.nombre}
+        </strong>
+      </p>
+
+      {mensaje && (
+        <p
+          style={{
+            color: 'green',
+            fontWeight: 'bold'
+          }}
+        >
+          {mensaje}
+        </p>
+      )}
+
+      {error && (
+        <p
+          style={{
+            color: 'red',
+            fontWeight: 'bold'
+          }}
+        >
+          {error}
+        </p>
+      )}
 
       <form onSubmit={handleSubmit}>
-        <div style={{ marginBottom: '15px', textAlign: 'left' }}>
-          <label style={{ display: 'block', marginBottom: '5px' }}>Especialidad:</label>
+        <div
+          style={{
+            marginBottom: '15px'
+          }}
+        >
+          <label>Especialidad:</label>
+
           <select
             name="especialidad"
             value={formData.especialidad}
             onChange={handleChange}
-            style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
+            style={{
+              width: '100%',
+              padding: '8px'
+            }}
           >
-            <option value="Medicina General">Medicina General</option>
-            <option value="Odontología">Odontología</option>
-            <option value="Pediatría">Pediatría</option>
-            <option value="Optometría">Optometría</option>
-            <option value="Cardiología">Cardiología</option>
+            <option>
+              Medicina General
+            </option>
+
+            <option>
+              Odontología
+            </option>
+
+            <option>
+              Pediatría
+            </option>
+
+            <option>
+              Optometría
+            </option>
+
+            <option>
+              Cardiología
+            </option>
           </select>
         </div>
 
-        <div style={{ marginBottom: '15px', textAlign: 'left' }}>
-          <label style={{ display: 'block', marginBottom: '5px' }}>Fecha y Hora:</label>
+        <div
+          style={{
+            marginBottom: '15px'
+          }}
+        >
+          <label>Médico:</label>
+
+          <select
+            name="medicoId"
+            value={formData.medicoId}
+            onChange={handleChange}
+            required
+            style={{
+              width: '100%',
+              padding: '8px'
+            }}
+          >
+            <option value="">
+              -- Selecciona un médico --
+            </option>
+
+            {medicos.map((medico) => (
+              <option
+                key={medico.id}
+                value={medico.id}
+              >
+                {medico.nombre}
+                {' - '}
+                {medico.especialidad}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div
+          style={{
+            marginBottom: '15px'
+          }}
+        >
+          <label>Fecha y Hora:</label>
+
           <input
             type="datetime-local"
             name="fechaHora"
             value={formData.fechaHora}
             onChange={handleChange}
             required
-            style={{ width: '100%', padding: '8px', boxSizing: 'border-box', borderRadius: '4px', border: '1px solid #ccc' }}
+            min={new Date()
+              .toISOString()
+              .slice(0, 16)}
+            style={{
+              width: '100%',
+              padding: '8px',
+              boxSizing: 'border-box'
+            }}
           />
         </div>
 
         <button
           type="submit"
-          style={{ width: '100%', padding: '10px', backgroundColor: '#28a745', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+          style={{
+            width: '100%',
+            padding: '10px',
+            backgroundColor: '#28a745',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer',
+            fontWeight: 'bold'
+          }}
         >
           Confirmar Cita
         </button>
@@ -94,3 +305,5 @@ export function AgendarCita({ usuario, onCitaCreada }) {
     </div>
   );
 }
+
+export default AgendarCita;
