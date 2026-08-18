@@ -16,3 +16,229 @@ button {
   padding: 6px 10px;
   cursor: pointer;
 }
+/* =========================================
+   REPORTE DE DETALLE DE CITA - SALUDRÍA
+   ========================================= */
+
+.reporte-contenedor {
+    max-width: 1000px;
+    margin: 30px auto;
+    padding: 30px;
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.12);
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+.reporte-encabezado {
+    text-align: center;
+    border-bottom: 2px solid #333;
+    padding-bottom: 20px;
+    margin-bottom: 25px;
+}
+
+.reporte-encabezado h1 {
+    margin: 0;
+    font-size: 32px;
+}
+
+.reporte-encabezado h2 {
+    margin: 8px 0;
+    font-size: 22px;
+}
+
+.reporte-encabezado p {
+    margin: 5px 0;
+}
+
+.reporte-seccion {
+    margin-bottom: 25px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 20px;
+}
+
+.reporte-seccion h3 {
+    margin-top: 0;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 10px;
+}
+
+.reporte-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+}
+
+.reporte-campo {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.reporte-campo strong,
+.reporte-campo-completo strong {
+    font-weight: bold;
+}
+
+.reporte-campo-completo {
+    margin-bottom: 18px;
+}
+
+.reporte-campo-completo p {
+    background: #f5f5f5;
+    padding: 12px;
+    border-radius: 6px;
+    margin-top: 7px;
+    min-height: 25px;
+}
+
+.reporte-acciones {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin-top: 30px;
+}
+
+.reporte-acciones button {
+    border: none;
+    padding: 12px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 15px;
+}
+
+.boton-imprimir {
+    background: #333;
+    color: white;
+}
+
+.boton-actualizar {
+    background: #666;
+    color: white;
+}
+
+.reporte-pie {
+    text-align: center;
+    border-top: 1px solid #ddd;
+    margin-top: 30px;
+    padding-top: 15px;
+    font-size: 13px;
+}
+
+.reporte-cargando,
+.reporte-error {
+    max-width: 700px;
+    margin: 50px auto;
+    padding: 30px;
+    text-align: center;
+}
+
+.reporte-error button {
+    padding: 10px 20px;
+    cursor: pointer;
+}
+
+/* =========================================
+   CONFIGURACIÓN PARA IMPRESIÓN
+   ========================================= */
+
+@media print {
+
+    body {
+        background: white !important;
+    }
+
+    .reporte-contenedor {
+        width: 100%;
+        max-width: none;
+        margin: 0;
+        padding: 10px;
+        box-shadow: none;
+        border-radius: 0;
+    }
+
+    .reporte-acciones {
+        display: none !important;
+    }
+
+    .reporte-seccion {
+        break-inside: avoid;
+    }
+
+    .reporte-pie {
+        margin-top: 20px;
+    }
+}
+/* =========================================================
+   CONFIGURACIÓN DE IMPRESIÓN DEL REPORTE DE ATENCIÓN
+   ========================================================= */
+
+@media print {
+
+    /* Ocultar todo lo que pertenece a la aplicación */
+    body * {
+        visibility: hidden !important;
+    }
+
+    /* Mostrar únicamente el reporte */
+    .reporte-impresion,
+    .reporte-impresion * {
+        visibility: visible !important;
+    }
+
+    /* Colocar el reporte al inicio de la hoja */
+    .reporte-impresion {
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+
+        width: 100% !important;
+
+        margin: 0 !important;
+        padding: 8mm !important;
+
+        background: white !important;
+
+        box-sizing: border-box !important;
+
+        font-family: Arial, Helvetica, sans-serif !important;
+    }
+
+    /* Ocultar botones durante la impresión */
+    .no-imprimir {
+        display: none !important;
+    }
+
+    /* Ocultar elementos innecesarios */
+    .reporte-acciones {
+        display: none !important;
+    }
+
+    /* Evitar sombras */
+    .reporte-impresion * {
+        box-shadow: none !important;
+    }
+
+    /* Evitar cortes extraños */
+    .reporte-seccion {
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+    }
+
+    .reporte-encabezado {
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+    }
+
+    .reporte-pie {
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+    }
+
+    /* Configuración de página A4 */
+    @page {
+        size: A4;
+        margin: 10mm;
+    }
+}
