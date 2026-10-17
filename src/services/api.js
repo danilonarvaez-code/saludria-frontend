@@ -1,13 +1,15 @@
-import axios from "axios";
+﻿import axios from "axios";
+
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
 const api = axios.create({
-  baseURL: "http://localhost:8080/api",
+  baseURL: `${API_URL}/api`,
   headers: {
     "Content-Type": "application/json",
   },
 });
 
-// Agrega automáticamente el JWT a todas las solicitudes protegidas.
+// Agrega automáticamente el JWT a las solicitudes protegidas.
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("saludria_token");
 
